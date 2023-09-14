@@ -11,9 +11,11 @@ from cflib.utils import uri_helper
 from cflib.positioning.motion_commander import MotionCommander
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncLogger import SyncLogger
+import pandas as pd
 
 uri = uri_helper.uri_from_env(default='radio://0/70/2M/E7E7E7E710')
 logging.basicConfig(level=logging.ERROR)
+data_csv = {"stabilizer.roll":[], "stabilizer.pitch":[], "stabilizer.yaw":[], "stateEstimate.x":[],"stateEstimate.y":[],"stateEstimate.z":[],"range.front":[],"range.back":[],"range.left":[],"range.right":[],"range.up":[]}
 
 class Drone():
     def __init__(self, scf, mc):
@@ -47,7 +49,10 @@ class Drone():
             log.stop()
 
     def log_callback(self, timestamp, data, logconf):
-        print('[%d][%s]: %s' % (timestamp, logconf.name, data))
+        for k in data:
+            data_csv[k].append(data[k])
+        #print('[%d][%s]: %s' % (timestamp, logconf.name, data))
+        #print(type(data))
 
 
 def init_logs():
@@ -72,14 +77,16 @@ if __name__ == '__main__':
     cflib.crtp.init_drivers()
     logs = init_logs()
     with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
-        with MotionCommander(scf, default_height= 0.3) as mc:
+        with MotionCommander(scf, default_height= .8) as mc:
             drone = Drone(scf, mc)
             drone.log_async(logs)
             #drone.takeoff(0.1) 
             time.sleep(1) ##hovering for 3 seconds
             #drone.forward(0.3)
             #drone.sleep(3)
-            drone.land()
+            #drone.land()
+    df=pd.DataFrame(data_csv)
+    df.to_csv("./data/test.csv")
         # drone1.hover(1)
         # drone1.land()
 
