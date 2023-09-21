@@ -43,6 +43,9 @@ class Drone():
     def forward(self, distance):
         self.mc.forward(distance)
         return
+    def backward(self,distance):
+        self.mc.back(distance)
+        return
     def left(self, angle=90):
         self.mc.turn_left(angle_degrees=angle)
         return
@@ -150,14 +153,16 @@ if __name__ == '__main__':
     logs = init_logs()
     #for movement simplicity everything should be right angles
     with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
-        with MotionCommander(scf, default_height= .8) as mc:
+        with MotionCommander(scf, default_height= .5) as mc:
             drone = Drone(scf, mc)
-            initial_pos = [state_estimate_dict['stateEstimate.x'][0],state_estimate_dict['stateEstimate.y'[0]]]
+            #initial_pos = [state_estimate_dict['stateEstimate.x'][0],state_estimate_dict['stateEstimate.y'[0]]]
             drone.log_async(logs)
-            drone.rise(.2)
+            drone.rise(.5)
             for i in range(10):
                 drone.forward(.2)
                 if range_dict["range.front"][-1]<500:
+                    drone.backward(.2)
+                    print("STOP")
                     break
             #drone.takeoff(0.1) 
             #time.sleep(1) ##hovering for 3 seconds
@@ -195,11 +200,12 @@ if __name__ == '__main__':
     range_df = pd.DataFrame(range_dict)
 
     #writing each df to xlsx file
-    path = "./data/test_" + str(datetime.datetime.now().replace(microsecond=0))
+    x = str(datetime.datetime.now().replace(microsecond=0)).replace(":","")
+    path = "./data/test_" + x +".xlsx"
     with pd.ExcelWriter(path= path, engine='xlsxwriter') as writer:
         for index, df in enumerate([stabilizer_df, stabilizer_df, range_df], start=1):
-            df.to_excel(writer,sheet_name= logging_dicts[index].keys()[0].split(".")[0])
-            
+            df.to_excel(writer,sheet_name= list(logging_dicts[index].keys())[0].split(".")[0])
+            #df.to_excel(writer,sheet_name= str(index))
         # drone1.hover(1)
         # drone1.land()
 
