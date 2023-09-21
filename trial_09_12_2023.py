@@ -1,6 +1,7 @@
 import logging
 import sys
 import time
+import datetime
 from threading import Event
 
 import cflib.crtp
@@ -194,9 +195,10 @@ if __name__ == '__main__':
     range_df = pd.DataFrame(range_dict)
 
     #writing each df to xlsx file
-    with pd.ExcelWriter(path= "./data/test.xlsx", engine='xlsxwriter') as writer:
+    path = "./data/test_" + str(datetime.datetime.now().replace(microsecond=0))
+    with pd.ExcelWriter(path= path, engine='xlsxwriter') as writer:
         for index, df in enumerate([stabilizer_df, stabilizer_df, range_df], start=1):
-            df.to_excel(writer,sheet_name= str(index))
+            df.to_excel(writer,sheet_name= logging_dicts[index].keys()[0].split(".")[0])
             
         # drone1.hover(1)
         # drone1.land()
