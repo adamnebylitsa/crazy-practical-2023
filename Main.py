@@ -56,6 +56,16 @@ class Drone():
         self.pc.right(distance)
         return
     
+    def move(self, direction, distance):
+        if direction =="front":
+            self.forward(distance)
+        elif direction == "right":
+            self.right(distance)
+        elif direction == "back":
+            self.backward(distance)
+        elif direction == "left":
+            self.left(distance)
+    
     def get_Position(self):
         return self.pc.get_position()
 
@@ -64,16 +74,20 @@ class Drone():
         #determine if obstacle in front is the wall or something to go around
         return False
     
-    #TODO
-    def go_Around(self):
-        #turn right 
-        #check if obstacle in front if so break so that method is recalled
-        #go forward until nothing on the left side
-        #turn left
-        #go forward until nothing on left side
-        #turn left
-        #go forward same amount as first iteration
-        #turn right
+
+    def go_Around(self, path="front", gap=500):
+        directions = ["front","right","back","left"] #create clockwise rotation method
+        location = directions.index(path) #find the which direction obstacle is in 
+        moved =0 #initialize counter to know how much moved from original path
+        if range_dict["range."+directions[(location+1)%4]][-1]<gap: #if there is something in the clockwise direction
+            self.go_Around(path=directions[(location+1)%4]) #recall method (Cases still need to be fully tested)
+        while range_dict["range."+path][-1]<gap: #while the obstacle is still in that direction
+            self.move(directions[(location+1)%4],.1) #move in the next directions
+            moved += .1 #adjust counter
+        self.move(path,gap/100) #move so that device is not in corner
+        while range_dict["range."+directions[(location-1)%4]][-1]<gap: #while the obstacle is in the previous clockwise direction
+            self.move(path,.1) #go the original direction
+        self.move(directions[(location-1)%4],moved) #go the previous clockwise direction the amount originally moved from path
         return
 
     #TODO 
