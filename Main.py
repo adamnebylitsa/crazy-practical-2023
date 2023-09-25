@@ -9,7 +9,7 @@ from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.utils import uri_helper
-from cflib.positioning.motion_commander import MotionCommander
+from cflib.positioning.position_hl_commander import PositionHlCommander
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncLogger import SyncLogger
 import pandas as pd
@@ -29,30 +29,36 @@ logging_dicts = [stabilizer_dict, state_estimate_dict, range_dict]
 
 #Drone class will contain functions related to movement of drone
 class Drone():
-    def __init__(self, scf, mc):
-        self.mc = mc
+    def __init__(self, scf, pc):
+        self.pc = pc
         self.scf = scf
         
     def rise(self, distance):
-        self.mc.up(distance)
+        self.pc.up(distance)
 
     def land(self):
-        self.mc.stop()
+        self.pc.land()
         return
     
     def forward(self, distance):
-        self.mc.forward(distance)
-        return
-    def backward(self,distance):
-        self.mc.back(distance)
-        return
-    def left(self, angle=90):
-        self.mc.turn_left(angle_degrees=angle)
-        return
-    def right(self, angle=90):
-        self.mc.turn_right(angle_degrees=angle)
+        self.pc.forward(distance)
         return
     
+    def backward(self,distance):
+        self.pc.back(distance)
+        return
+    
+    def left(self, distance):
+        self.pc.left(distance)
+        return
+    
+    def right(self, distance):
+        self.pc.right(distance)
+        return
+    
+    def get_Position(self):
+        return self.pc.get_position()
+
     #TODO 
     def is_Wall(self):
         #determine if obstacle in front is the wall or something to go around
@@ -153,9 +159,14 @@ if __name__ == '__main__':
     logs = init_logs()
     #for movement simplicity everything should be right angles
     with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
-        with MotionCommander(scf, default_height= .5) as mc:
-            drone = Drone(scf, mc)
-            #initial_pos = [state_estimate_dict['stateEstimate.x'][0],state_estimate_dict['stateEstimate.y'[0]]]
+        with PositionHlCommander(
+                scf,
+                x=0.0, y=0.0, z=0.0,
+                default_velocity=0.3,
+                default_height=0.5,
+                controller=PositionHlCommander.CONTROLLER_MELLINGER) as pc:
+            drone = Drone(scf, pc)
+            #initial_pos = drone.get_Position()
             drone.log_async(logs)
             drone.rise(.5)
             for i in range(10):
