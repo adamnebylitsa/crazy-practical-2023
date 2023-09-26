@@ -110,21 +110,18 @@ class Drone():
         #travels the distance needed avoiding obstacles
         
         start_pos = get_position(self)
-        target_y = start_pos[1]+distance
-        current_y = start_pos[1]
-        while range_dict["range.front"][-1]>500 and target_y != current_y: #while there is no obstacle and target_y isn't reached
+        target_pos = [start_pos[0]+distance[0], start_pos[1]+distance[1], start_pos[2]]
+        current_pos = start_pos
+        
+        while abs(target_pos[1]-current_pos[1])>=.1:
             self.move("front",.4) #move forward
-            
             current_pos = self.get_position() #get current position
-            current_y = current_pos[1]
             
             if range_dict["range.front"][-1]<=500: #if there's an obstacle
                 self.go_around() #go around it
                 current_pos = self.get_position()
-                current_y = current_pos[1]
-                
-            if target_pos=>current_pos: #if the target_position is reached
-                break
+        #check x
+        #check y again
         return
 
     #TODO 
