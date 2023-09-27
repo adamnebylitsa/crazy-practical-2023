@@ -113,6 +113,7 @@ class Drone():
         target_pos = [start_pos[0]+distance[0], start_pos[1]+distance[1], start_pos[2]]
         current_pos = start_pos
         
+        #go to y coordinate (vertical)
         while abs(target_pos[1]-current_pos[1])>=.1:
             self.move("front",.4) #move forward
             current_pos = self.get_position() #get current position
@@ -120,8 +121,34 @@ class Drone():
             if range_dict["range.front"][-1]<=500: #if there's an obstacle
                 self.go_around() #go around it
                 current_pos = self.get_position()
-        #check x
-        #check y again
+        
+        #go to x coordinate (left/right)
+        while abs(target_pos[0]-current_pos[0])>=.1:
+            if target_pos[0]-current_pos[0]>0:
+                self.move("right",.4)
+                current_pos = self.get_position()
+
+                if range_dict["range.right"][-1]<=500:
+                    self.go_around() #will go around still work if the object is on its right?
+                    current_pos = self.get_position()
+
+            elif target_pos[0]-current_pos[0]<0:
+                self.move("left",.4)
+                current_pos = self.get_position()
+
+                if range_dict["range.left"][-1]<=500:
+                    self.go_around() #will go around still work if the object is on its left?
+                    current_pos = self.get_position()
+        
+        #go to y coordinate again (vertical)
+        while abs(target_pos[1]-current_pos[1])>=.1:
+            self.move("front",.4) #move forward
+            current_pos = self.get_position() #get current position
+            
+            if range_dict["range.front"][-1]<=500: #if there's an obstacle
+                self.go_around() #go around it
+                current_pos = self.get_position()
+                
         return
 
     #TODO 
