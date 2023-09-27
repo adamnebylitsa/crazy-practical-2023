@@ -32,6 +32,11 @@ class Drone():
     def __init__(self, scf, pc):
         self.pc = pc
         self.scf = scf
+        self.first =False
+        self.end = False
+        self.first_pos=None
+        self.last_pos=None
+        self.first_time=0
         
     def rise(self, distance):
         self.pc.up(distance)
@@ -56,6 +61,14 @@ class Drone():
         self.pc.right(distance)
         return
     
+    def reset(self):
+        self.first =False
+        self.end = False
+        self.first_pos=None
+        self.last_pos=None
+        self.first_time=0
+        return
+    
     def move(self, direction, distance):
         if direction =="front":
             self.forward(distance)
@@ -78,11 +91,11 @@ class Drone():
                 pass
             else:
                 self.move(directions[(location-1)%4],distance)
-                value = range_dict[path][-1]<500
+                value = range_dict["range."+path][-1]<500
                 self.move(directions[(location+1)%4],distance) 
         else:        
             self.move(directions[(location+1)%4],distance)
-            value = range_dict[path][-1]<500
+            value = range_dict["range."+path][-1]<500
             self.move(directions[(location-1)%4],distance)
         #determine if obstacle in front is the wall or something to go around
         return value
@@ -181,6 +194,15 @@ class Drone():
         elif logconf.name == 'Position':
             for param in logging_dicts[1]: #look at each item in the dictionary
                 logging_dicts[1][param].append(data[param]) #add the value associated with that item to the list for that item
+            if state_estimate_dict["stateEstimate.z"][-1]<.53 and not self.first:
+                self.first =True
+                self.first_pos=self.get_Position()
+                self.first_time = time.time()
+                print("first")
+            if state_estimate_dict["stateEstimate.z"][-1]>.65 and self.first and self.first_time+1<time.time() and not self.end:
+                self.end =True
+                self.end_pos=self.get_Position()
+                print("end")
 
         # for k in data:
         #     data_csv[k].append(data[k])
@@ -218,16 +240,22 @@ if __name__ == '__main__':
         with PositionHlCommander(
                 scf,
                 x=0.0, y=0.0, z=0.0,
-                default_velocity=0.3,
-                default_height=0.5,
+                default_velocity=0.1,
+                default_height=0.6,
                 controller=PositionHlCommander.CONTROLLER_MELLINGER) as pc:
             drone = Drone(scf, pc)
             #initial_pos = drone.get_Position()
             drone.log_async(logs)
-            drone.rise(.5)
+            #time.sleep(5)
+            #drone.rise(.3)
+            #time.sleep(5)
             for i in range(10):
                 drone.forward(.2)
                 if range_dict["range.front"][-1]<500:
+                    if drone.is_Wall("front"):
+                        print("wall")
+                    else:
+                        [print("no wall")]
                     drone.backward(.2)
                     print("STOP")
                     break
