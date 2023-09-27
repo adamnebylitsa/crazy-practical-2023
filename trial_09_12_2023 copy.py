@@ -59,7 +59,7 @@ class Drone():
         return False
     
     #TODO
-    def go_Around(self):
+    def go_Around(self, path: str):
         #turn right 
         #check if obstacle in front if so break so that method is recalled
         #go forward until nothing on the left side
@@ -71,27 +71,59 @@ class Drone():
         return
 
     #TODO 
-    def search_Land(self, distance=2, found = False):
-        #assuming we start somewhere facing the back wall
+    def search_Land(self, distance=2, found = False, at_l_wall = False, at_r_wall = False):
+        #assuming we start in the right corner of the section: -------------
+                                                   #                      * |
+                                                   #                        |       
+                                                   #
+        #while the landing area is not found, the drone will move left, then back, then right, then back .
+        # This will repeat until landing pad is found
+        #                        
         while not found:
-            while not found:
+            while not found and not at_l_wall:
+                if range_dict["range.left"][-1] < 500:
+                    if not self.is_Wall():
+                        self.go_Around()
+                        continue
+                    else:
+                        at_l_wall = True
+                        break
+
                 self.pc.left(.2)
+
                 if range_dict['range.up'][-1] < distance:
                     found = True
                     break
-                if range_dict["range.left"][-1] < 500:
-                    break
-            
-            if not found:
-                self.pc.back(.5)
 
-            while not found:
+            if not found:
+                if range_dict['range.back'][-1] < distance:
+                    if not self.is_Wall():
+                        self.go_Around('back')
+                self.pc.back()
+                        
+    
+
+            while not found and not at_r_wall:
+                if range_dict["range.right"][-1] < 500:
+                    if not self.is_Wall():
+                        self.go_Around('right')
+                        continue
+                    else:
+                        at_r_wall = True
+                        break
+
                 self.pc.right(.2)
                 if range_dict['range.up'][-1] < distance:
                     found = True
                     break
-                if range_dict["range.right"][-1] < 500:
-                    break
+                
+            
+            if not found:
+                if range_dict['range.back'][-1] < distance:
+                    if not self.is_Wall():
+                        self.go_Around('back')
+                self.pc.back(.2)
+
         
         
 
