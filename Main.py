@@ -88,7 +88,18 @@ class Drone():
         location = directions.index(path) #find the which direction obstacle is in 
         if range_dict["range."+directions[(location+1)%4]][-1]<1500*distance:
             if range_dict["range."+directions[(location-1)%4]][-1]<1500*distance:
-                pass
+                self.move(directions[(location-2)%4],distance)
+                if range_dict["range."+directions[(location+1)%4]][-1]>1500*distance:
+                    self.go_Around(directions[(location+1)%4],start=distance)
+                    value = range_dict["range."+path][-1]<500
+                    self.go_Around(directions[(location-1)%4])
+                elif range_dict["range."+directions[(location-1)%4]][-1]>1500*distance:
+                    self.go_Around(directions[(location-1)%4],start=distance)
+                    value = range_dict["range."+path][-1]<500
+                    self.go_Around(directions[(location+1)%4])
+                else:
+                    self.move(path,distance)
+                    return True
             else:
                 self.move(directions[(location-1)%4],distance)
                 value = range_dict["range."+path][-1]<500
@@ -101,10 +112,11 @@ class Drone():
         return value
     
 
-    def go_Around(self, path="front", gap=500):
+    def go_Around(self, path="front", gap=500,start=0):
         directions = ["front","right","back","left"] #create clockwise rotation method
-        location = directions.index(path) #find the which direction obstacle is in 
-        moved =0 #initialize counter to know how much moved from original path
+        location = directions.index(path) #find the which direction obstacle is in
+        cord = location%2
+        init_pos=self.get_Position()[cord]-start
         while range_dict["range."+path][-1]<gap*1.5: #while the obstacle is still in that direction
             if range_dict["range."+directions[(location+1)%4]][-1]<gap: #if there is something in the clockwise direction
                 if self.is_Wall(directions[(location+1)%4]):
@@ -113,7 +125,6 @@ class Drone():
                     self.go_Around(path=directions[(location+1)%4]) #recall method (Cases still need to be fully tested)
                 continue
             self.move(directions[(location+1)%4],.1) #move in the next directions
-            moved += .1 #adjust counter
         self.move(path,gap/1000) #move so that device is not in corner
         while range_dict["range."+directions[(location-1)%4]][-1]<gap: #while the obstacle is in the previous clockwise direction
             if range_dict["range."+path][-1]<gap:
@@ -122,13 +133,13 @@ class Drone():
                 self.go_Around(path)
                 continue
             self.move(path,.1) #go the original direction
-        while moved>.1:
-            if range_dict["range."+directions[(location-1)%4]][-1]<gap:
-                self.go_Around(path=directions[(location-1)%4])
-                continue
-            self.move(directions(location-1)%4,.1)
-            moved -=.1
-        self.move(directions[(location-1)%4],moved) #go the previous clockwise direction the amount originally moved from path
+        moved =self.get_Position()[cord]-init_pos
+        while abs(moved)>(gap-100)/1000:
+            if range_dict["range."+directions[((3*cord)+1+(abs(moved)/moved))%4]][-1]<gap:
+                pass
+            self.move(directions[((3*cord)+1+(abs(moved)/moved))%4],(gap-100)/1000)
+            moved =self.get_Position()[cord]-init_pos
+        self.move(directions[((3*cord)+1+(abs(moved)/moved))%4],abs(moved))
         return True
 
     #TODO 
@@ -205,17 +216,17 @@ class Drone():
     def go_to(self,distance):
         #travels the distance needed avoiding obstacles
         
-        start_pos = get_position(self)
+        start_pos = self.get_Position()
         target_pos = [start_pos[0]+distance[0], start_pos[1]+distance[1], start_pos[2]]
         current_pos = start_pos
         
         while abs(target_pos[1]-current_pos[1])>=.1:
             self.move("front",.4) #move forward
-            current_pos = self.get_position() #get current position
+            current_pos = self.get_Position() #get current position
             
             if range_dict["range.front"][-1]<=500: #if there's an obstacle
                 self.go_around() #go around it
-                current_pos = self.get_position()
+                current_pos = self.get_Position()
         #check x
         #check y again
         return
