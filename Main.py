@@ -181,16 +181,15 @@ class Drone():
         return True
 
     #TODO 
-    def search_Land(self, distance=2, found = False, at_l_wall = False, at_r_wall = False):
+    def search_Land(self, distance=200, at_l_wall = False, at_r_wall = False):
         #assuming we start in the right corner of the section: -------------
                                                    #                      * |
                                                    #                        |       
-                                                   #
         #while the landing area is not found, the drone will move left, then back, then right, then back .
         # This will repeat until landing pad is found
-        #                        
-        while not found:
-            while not found and not at_l_wall:
+                 
+        while not self.first:
+            while not self.first and not at_l_wall:
                 if range_dict["range.left"][-1] < 500:
                     if not self.is_Wall():
                         self.go_Around()
@@ -201,19 +200,13 @@ class Drone():
 
                 self.pc.left(.2)
 
-                if range_dict['range.up'][-1] < distance:
-                    found = True
-                    break
-
-            if not found:
-                if range_dict['range.back'][-1] < distance:
+            if not self.first:
+                if range_dict['range.back'][-1] < 500:
                     if not self.is_Wall():
                         self.go_Around('back')
                 self.pc.back()
                         
-    
-
-            while not found and not at_r_wall:
+            while not self.first and not at_r_wall:
                 if range_dict["range.right"][-1] < 500:
                     if not self.is_Wall():
                         self.go_Around('right')
@@ -223,13 +216,9 @@ class Drone():
                         break
 
                 self.pc.right(.2)
-                if range_dict['range.up'][-1] < distance:
-                    found = True
-                    break
-                
             
-            if not found:
-                if range_dict['range.back'][-1] < distance:
+            if not self.first:
+                if range_dict['range.back'][-1] < 500:
                     if not self.is_Wall():
                         self.go_Around('back')
                 self.pc.back(.2)
@@ -270,11 +259,66 @@ class Drone():
         return
 
     #TODO 
-    def search_Start(self):
+    def search_Start(self, distance = .2, increase = .1, start_disance = None):
         #at assumed start position
         #if not above box
         #search for box using growing circles
         #break when find box
+
+        #general motion: go forward(x) go_right(x) go_back(x+ delta) go_left(x+delta), x = x + 2*delta and repeat
+
+        #if alredy above box, execute find center function (may need to be replaced with edge finding algo)
+        if self.first:  
+            return
+        else:
+            while not self.first:
+                #forward
+                if range_dict["range.front"][-1] < 500:
+                    if not self.is_Wall():
+                        self.go_Around()
+                    else:
+                        self.go_to(start_disance)
+                        #figure out what to do here
+                        #go back to start and decrease distance/increase parameter?
+                        pass
+                elif not self.first:
+                    self.forward(distance)
+                
+                #right
+                if range_dict["range.right"][-1] < 500:
+                    if not self.is_Wall():
+                        self.go_Around(path = 'right')
+                    else:
+                        self.go_to(start_disance)
+                        #figure out what to do here
+                        pass
+                elif not self.first:
+                    self.right(distance)
+
+                #back
+                if range_dict["range.back"][-1] < 500:
+                    if not self.is_Wall():
+                        self.go_Around(path='back')
+                    else:
+                        self.go_to(start_disance)
+                        #figure out what to do here
+                        pass
+                elif not self.first:
+                    self.backward(distance+increase) 
+                
+                #left
+                if range_dict["range.left"][-1] < 500:
+                    if not self.is_Wall():
+                        self.go_Around(path='left')
+                    else:
+                        self.go_to(start_disance)
+                        #figure out what to do here
+                        pass
+                elif not self.first:
+                    self.left(distance+increase)
+
+                distance = distance + (2*increase)
+        
         return
     
 
@@ -393,6 +437,8 @@ if __name__ == '__main__':
     #            controller=PositionHlCommander.CONTROLLER_MELLINGER) as pc:
     #         drone = Drone(scf,mc)
     #         distance=[initial_pos[0]-end_pos[0],initial_pos[1]-end_pos[1]]
+    #         drone.go_to(distance)
+    #         drone.search_Start(start_distance = distance)
     #         drone.go_to(distance)
     #         drone.search_Start()
     #         drone.find_center()
