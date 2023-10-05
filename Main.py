@@ -83,22 +83,22 @@ class Drone():
         return self.pc.get_position()
 
     #TODO 
-    def is_Wall(self, path="front",distance=.6,back=True):
+    def is_Wall(self, path="front",distance=.7,back=True):
         directions = ["front","right","back","left"] #create clockwise rotation method
         location = directions.index(path) #find the which direction obstacle is in 
         position=self.get_Position()
-        if range_dict["range."+directions[(location+1)%4]][-1]<1500*distance:
-            if range_dict["range."+directions[(location-1)%4]][-1]<1500*distance:
+        if range_dict["range."+directions[(location+1)%4]][-1]<1200*distance:
+            if range_dict["range."+directions[(location-1)%4]][-1]<1200*distance:
                 self.move(directions[(location-2)%4],distance)
-                if range_dict["range."+directions[(location+1)%4]][-1]>1500*distance:
+                if range_dict["range."+directions[(location+1)%4]][-1]>1200*distance:
                     self.go_Around(directions[(location+1)%4],start=position)
                     value = range_dict["range."+path][-1]<550
-                    if back or not value:
+                    if back or value:
                         self.go_Around(directions[(location-1)%4])
-                elif range_dict["range."+directions[(location-1)%4]][-1]>1500*distance:
+                elif range_dict["range."+directions[(location-1)%4]][-1]>1200*distance:
                     self.go_Around(directions[(location-1)%4],start=position)
                     value = range_dict["range."+path][-1]<550
-                    if back or not value:
+                    if back or value:
                         self.go_Around(directions[(location+1)%4])
                 else:
                     self.move(path,distance)
@@ -106,12 +106,12 @@ class Drone():
             else:
                 self.move(directions[(location-1)%4],distance)
                 value = range_dict["range."+path][-1]<550
-                if back or not value:
+                if back or value:
                     self.move(directions[(location+1)%4],distance) 
         else:        
             self.move(directions[(location+1)%4],distance)
             value = range_dict["range."+path][-1]<550
-            if back or not value:
+            if back or value:
                 self.move(directions[(location-1)%4],distance)
         #determine if obstacle in front is the wall or something to go around
         return value
@@ -164,7 +164,10 @@ class Drone():
             self.move(path,.1) #go the original direction
         moved =self.get_Position()[cord]-init_pos
         while abs(moved)>(gap-100)/1000:
-            if range_dict["range."+directions[((3*cord)+1+(abs(moved)/moved))%4]][-1]<gap: 
+            print(moved)
+            print(((3*cord)+2+(abs(moved)/moved))%4)
+            if range_dict["range."+directions[int(((3*cord)+2+(abs(moved)/moved))%4)]][-1]<gap: 
+                print("WHY")
                 if range_dict["range."+path][-1]<gap:
                     position = self.get_Position()
                     if self.is_Wall(path,back=False):
@@ -175,9 +178,10 @@ class Drone():
                 self.move(path,.1)
                 moved =self.get_Position()[cord]-init_pos
                 continue
-            self.move(directions[((3*cord)+1+(abs(moved)/moved))%4],(gap-100)/1000)
+            self.move(directions[int(((3*cord)+2+(abs(moved)/moved))%4)],(gap-100)/1000)
+            print("good")
             moved =self.get_Position()[cord]-init_pos
-        self.move(directions[((3*cord)+1+(abs(moved)/moved))%4],abs(moved))
+        self.move(directions[int(((3*cord)+2+(abs(moved)/moved))%4)],abs(moved))
         return True
 
     #TODO 
@@ -388,7 +392,7 @@ if __name__ == '__main__':
         with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
             with PositionHlCommander(
                 scf,
-                x=0.0, y=0.0, z=0.0,
+                #x=0.0, y=0.0, z=0.0,
                 default_velocity=0.1,
                 default_height=0.6,
                 controller=PositionHlCommander.CONTROLLER_PID) as pc:
@@ -401,6 +405,10 @@ if __name__ == '__main__':
                 #time.sleep(5)
                 for i in range(10):
                     drone.forward(.2)
+                    if range_dict["range.left"][-1]<100:
+                        drone.left(.1)
+                    if range_dict["range.right"][-1]<100:
+                        drone.right(.1)
                     if range_dict["range.front"][-1]<500:
                         print("STOP")
                         position = drone.get_Position()
@@ -409,7 +417,7 @@ if __name__ == '__main__':
                         else:
                             print("no wall")
                             drone.go_Around(start=position)
-                        drone.backward(.2)
+                        #drone.backward(.2)
                         break
         #   TODO
         #   Fly code 
@@ -428,6 +436,7 @@ if __name__ == '__main__':
     #         drone.search_Land()
     #         drone.find_center()
     #         end_pos= drone.get_Position()
+    #time.sleep(2)
     #with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
     #        with PositionHlCommander(
     #            scf,
@@ -442,8 +451,8 @@ if __name__ == '__main__':
     #         drone.go_to(distance)
     #         drone.search_Start()
     #         drone.find_center()
-    except:
-        pass   
+    except InterruptedError:
+        print("ERROR") 
     #creating pandas dataframes from logging dicts
     stabilizer_df = pd.DataFrame(stabilizer_dict)
     state_estimate_df = pd.DataFrame(state_estimate_dict)
