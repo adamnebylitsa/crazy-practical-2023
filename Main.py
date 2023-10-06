@@ -32,10 +32,10 @@ class Drone():
     def __init__(self, scf, pc):
         self.pc = pc
         self.scf = scf
-        self.first =False
+        self.start =False
         self.end = False
-        self.first_pos=None
-        self.last_pos=None
+        self.start_pos=None
+        self.end_pos=None
         self.first_time=0
         
     def rise(self, distance):
@@ -62,10 +62,10 @@ class Drone():
         return
     
     def reset(self):
-        self.first =False
+        self.start =False
         self.end = False
-        self.first_pos=None
-        self.last_pos=None
+        self.start_pos=None
+        self.end_pos=None
         self.first_time=0
         return
     
@@ -96,7 +96,7 @@ class Drone():
                     if back or value:
                         self.go_Around(directions[(location-1)%4])
                 elif range_dict["range."+directions[(location-1)%4]][-1]>1200*distance:
-                    self.go_Around(directions[(location-1)%4],start=position)
+                    self.go_Around(directions[(location-1)%4],start=position,way ="left")
                     value = range_dict["range."+path][-1]<550
                     if back or value:
                         self.go_Around(directions[(location+1)%4])
@@ -104,40 +104,47 @@ class Drone():
                     self.move(path,distance)
                     return True
             else:
-                self.move(directions[(location-1)%4],distance)
-                value = range_dict["range."+path][-1]<550
+                for i in range(10):
+                    self.move(directions[(location-1)%4],distance/10)
+                    value = range_dict["range."+path][-1]<550
+                    if not value:
+                        self.move(directions[(location-1)%4],.1)
+                        break
                 if back or value:
                     self.move(directions[(location+1)%4],distance) 
-        else:        
-            self.move(directions[(location+1)%4],distance)
-            value = range_dict["range."+path][-1]<550
+        else:
+            for i in range(10):        
+                self.move(directions[(location+1)%4],distance/10)
+                value = range_dict["range."+path][-1]<550
+                if not value:
+                    self.move(directions[(location+1)%4],.1)
+                    break
             if back or value:
                 self.move(directions[(location-1)%4],distance)
         #determine if obstacle in front is the wall or something to go around
         return value
     
 
-    def go_Around(self, path="front", gap=500,start=None):
+    def go_Around(self, path="front", gap=500,start=None,way="right"):
         directions = ["front","right","back","left"] #create clockwise rotation method
         location = directions.index(path) #find the which direction obstacle is in
-        cord = location%2
+        cord = location%2 +1
         if start ==None:
             init_pos=self.get_Position()[cord]
         else:
             init_pos=start[cord]
-        side = "Left"
-        while range_dict["range."+path][-1]<gap*1.5: #while the obstacle is still in that direction
-            if side=="Left" and range_dict["range."+directions[(location+1)%4]][-1]<gap: #if there is something in the clockwise direction
+        while range_dict["range."+path][-1]<gap*1.2: #while the obstacle is still in that direction
+            if way=="right" and range_dict["range."+directions[(location+1)%4]][-1]<gap: #if there is something in the clockwise direction
                 position=self.get_Position()
                 if self.is_Wall(directions[(location+1)%4],back=False):
-                    side = "Right"
+                    way="left"
                     continue
                 else:
                     self.go_Around(path=directions[(location+1)%4],start=position) #recall method (Cases still need to be fully tested)
                 continue
-            elif side=="Left":
+            elif way =="right":
                 self.move(directions[(location+1)%4],.1) #move in the next directions
-            elif side=="Right" and range_dict["range."+directions[(location-1)%4]][-1]<gap:
+            elif way=="left" and range_dict["range."+directions[(location-1)%4]][-1]<gap:
                 position=self.get_Position()
                 if self.is_Wall(directions[(location-1)%4],back=False):
                     side = "STUFF"
@@ -145,11 +152,11 @@ class Drone():
                 else:
                     self.go_Around(path=directions[(location-1)%4],start=position) #recall method (Cases still need to be fully tested)
                 continue
-            elif side=="Right":
+            elif way=="left":
                 self.move(directions[(location-1)%4],.1)
             else:
                 return False
-        self.move(path,1.5*gap/1000) #move so that device is not in corner
+        self.move(path,1.2*gap/1000) #move so that device is not in corner
         if "Left":
             flag =1
         elif "Right":
@@ -165,8 +172,8 @@ class Drone():
         moved =self.get_Position()[cord]-init_pos
         while abs(moved)>(gap-100)/1000:
             print(moved)
-            print(((3*cord)+2+(abs(moved)/moved))%4)
-            if range_dict["range."+directions[int(((3*cord)+2+(abs(moved)/moved))%4)]][-1]<gap: 
+            print(((3*cord)+1+(abs(moved)/moved))%4)
+            if range_dict["range."+directions[int(((3*cord)+1+(abs(moved)/moved))%4)]][-1]<gap: 
                 print("WHY")
                 if range_dict["range."+path][-1]<gap:
                     position = self.get_Position()
@@ -178,10 +185,10 @@ class Drone():
                 self.move(path,.1)
                 moved =self.get_Position()[cord]-init_pos
                 continue
-            self.move(directions[int(((3*cord)+2+(abs(moved)/moved))%4)],(gap-100)/1000)
+            self.move(directions[int(((3*cord)+1+(abs(moved)/moved))%4)],(gap-100)/1000)
             print("good")
             moved =self.get_Position()[cord]-init_pos
-        self.move(directions[int(((3*cord)+2+(abs(moved)/moved))%4)],abs(moved))
+        self.move(directions[int(((3*cord)+1+(abs(moved)/moved))%4)],abs(moved))
         return True
 
     #TODO 
@@ -192,8 +199,8 @@ class Drone():
         #while the landing area is not found, the drone will move left, then back, then right, then back .
         # This will repeat until landing pad is found
                  
-        while not self.first:
-            while not self.first and not at_l_wall:
+        while not self.start:
+            while not self.start and not at_l_wall:
                 if range_dict["range.left"][-1] < 500:
                     if not self.is_Wall():
                         self.go_Around()
@@ -204,13 +211,13 @@ class Drone():
 
                 self.pc.left(.2)
 
-            if not self.first:
+            if not self.start:
                 if range_dict['range.back'][-1] < 500:
                     if not self.is_Wall():
                         self.go_Around('back')
                 self.pc.back()
                         
-            while not self.first and not at_r_wall:
+            while not self.start and not at_r_wall:
                 if range_dict["range.right"][-1] < 500:
                     if not self.is_Wall():
                         self.go_Around('right')
@@ -221,7 +228,7 @@ class Drone():
 
                 self.pc.right(.2)
             
-            if not self.first:
+            if not self.start:
                 if range_dict['range.back'][-1] < 500:
                     if not self.is_Wall():
                         self.go_Around('back')
@@ -236,11 +243,18 @@ class Drone():
     
     #TODO     
     def find_center(self):
-        #at end of the box
-        #get that location
-        #find other edge of the box
-        #find length of box and go to center of it
-        #repeat for other direction
+        self.back(.3)
+        self.reset()
+        while not self.end:
+            self.forward(.2)
+        midpoint = [(self.end_pos[0]+self.start_pos[0])/2,(self.end_pos[1]+self.start_pos[1])/2]
+        self.go_to(midpoint)
+        self.left(.3)
+        self.reset()
+        while not self.end:
+            self.right(.2)
+        midpoint = [(self.end_pos[0]+self.start_pos[0])/2,(self.end_pos[1]+self.start_pos[1])/2]
+        self.go_to(midpoint)
         return
     
     #JI
@@ -299,10 +313,10 @@ class Drone():
         #general motion: go forward(x) go_right(x) go_back(x+ delta) go_left(x+delta), x = x + 2*delta and repeat
 
         #if alredy above box, execute find center function (may need to be replaced with edge finding algo)
-        if self.first:  
+        if self.start:  
             return
         else:
-            while not self.first:
+            while not self.start:
                 #forward
                 if range_dict["range.front"][-1] < 500:
                     if not self.is_Wall():
@@ -312,7 +326,7 @@ class Drone():
                         #figure out what to do here
                         #go back to start and decrease distance/increase parameter?
                         pass
-                elif not self.first:
+                elif not self.start:
                     self.forward(distance)
                 
                 #right
@@ -323,7 +337,7 @@ class Drone():
                         self.go_to(start_disance)
                         #figure out what to do here
                         pass
-                elif not self.first:
+                elif not self.start:
                     self.right(distance)
 
                 #back
@@ -334,7 +348,7 @@ class Drone():
                         self.go_to(start_disance)
                         #figure out what to do here
                         pass
-                elif not self.first:
+                elif not self.start:
                     self.backward(distance+increase) 
                 
                 #left
@@ -345,7 +359,7 @@ class Drone():
                         self.go_to(start_disance)
                         #figure out what to do here
                         pass
-                elif not self.first:
+                elif not self.start:
                     self.left(distance+increase)
 
                 distance = distance + (2*increase)
@@ -373,12 +387,12 @@ class Drone():
         elif logconf.name == 'Position':
             for param in logging_dicts[1]: #look at each item in the dictionary
                 logging_dicts[1][param].append(data[param]) #add the value associated with that item to the list for that item
-            if state_estimate_dict["stateEstimate.z"][-1]<.53 and not self.first:
-                self.first =True
-                self.first_pos=self.get_Position()
-                self.first_time = time.time()
-                print("first")
-            if state_estimate_dict["stateEstimate.z"][-1]>.65 and self.first and self.first_time+1<time.time() and not self.end:
+            if state_estimate_dict["stateEstimate.z"][-1]<.53 and not self.start:
+                self.start =True
+                self.start_pos=self.get_Position()
+                self.start_time = time.time()
+                print("start")
+            if state_estimate_dict["stateEstimate.z"][-1]>.65 and self.start and self.first_time+1<time.time() and not self.end:
                 self.end =True
                 self.end_pos=self.get_Position()
                 print("end")
@@ -429,8 +443,9 @@ if __name__ == '__main__':
                 print("takeoff")
                 time.sleep(1)
                 initial_pos = drone.get_Position()
+                print(initial_pos)
                 #time.sleep(5)
-                for i in range(10):
+                for i in range(15):
                     drone.forward(.2)
                     if range_dict["range.left"][-1]<100:
                         drone.left(.1)
@@ -446,6 +461,13 @@ if __name__ == '__main__':
                             drone.go_Around(start=position)
                         #drone.backward(.2)
                         break
+                """
+                for i in range(5):
+                    drone.forward(.2)
+                    if drone.start:
+                        drone.find_center()
+                        break
+                """
         #   TODO
         #   Fly code 
     #         at_end = False
@@ -478,7 +500,7 @@ if __name__ == '__main__':
     #         drone.go_to(distance)
     #         drone.search_Start()
     #         drone.find_center()
-    except InterruptedError:
+    except KeyboardInterrupt:
         print("ERROR") 
     #creating pandas dataframes from logging dicts
     stabilizer_df = pd.DataFrame(stabilizer_dict)
@@ -492,6 +514,4 @@ if __name__ == '__main__':
         for index, df in enumerate([stabilizer_df, state_estimate_df, range_df], start=0):
             df.to_excel(writer,sheet_name= list(logging_dicts[index].keys())[0].split(".")[0])
             #df.to_excel(writer,sheet_name= str(index))
-        # drone1.hover(1)
-        # drone1.land()
 
