@@ -61,7 +61,7 @@ class Drone():
         self.pc.right(distance)
         return
     
-    def reset(self):
+    def reset(self): #resets the flags and parameters for finding the box
         self.start =False
         self.end = False
         self.start_pos=None
@@ -69,7 +69,7 @@ class Drone():
         self.first_time=0
         return
     
-    def move(self, direction, distance):
+    def move(self, direction, distance): #general move function to allow for any path taken
         if direction =="front":
             self.forward(distance)
         elif direction == "right":
@@ -82,116 +82,120 @@ class Drone():
     def get_Position(self):
         return self.pc.get_position()
 
-    #TODO 
+    #method to determine if the path is a wall by moving a distance to the side and determining if the object ist still in front
+    #method would default to going back to the original location and anytime it is a wall
     def is_Wall(self, path="front",distance=.7,back=True):
+        # path is direction going, distance is max distance to move to the side to determine if it is a wall, 
+        # back is a flag for if it would go back to the original location
         directions = ["front","right","back","left"] #create clockwise rotation method
         location = directions.index(path) #find the which direction obstacle is in 
-        position=self.get_Position()
-        if range_dict["range."+directions[(location+1)%4]][-1]<1200*distance:
-            if range_dict["range."+directions[(location-1)%4]][-1]<1200*distance:
-                self.move(directions[(location-2)%4],distance)
-                if range_dict["range."+directions[(location+1)%4]][-1]>1200*distance:
-                    self.go_Around(directions[(location+1)%4],start=position)
-                    value = range_dict["range."+path][-1]<550
+        position=self.get_Position() # gets current position
+        if range_dict["range."+directions[(location+1)%4]][-1]<1200*distance: #if there is a obstacle in the clockwise direction
+            if range_dict["range."+directions[(location-1)%4]][-1]<1200*distance: #if there is also an obstacle in the counterclockwise direction
+                self.move(directions[(location-2)%4],distance) #move backwards
+                if range_dict["range."+directions[(location+1)%4]][-1]>1200*distance: #if there is nothing in the clockwise
+                    self.go_Around(directions[(location+1)%4],start=position) #go around the object to the side
+                    value = range_dict["range."+path][-1]<550 #test if something is still in front
                     if back or value:
-                        self.go_Around(directions[(location-1)%4])
-                elif range_dict["range."+directions[(location-1)%4]][-1]>1200*distance:
-                    self.go_Around(directions[(location-1)%4],start=position,way ="left")
-                    value = range_dict["range."+path][-1]<550
+                        self.go_Around(directions[(location-1)%4]) #go back if forced or if it is a wall
+                elif range_dict["range."+directions[(location-1)%4]][-1]>1200*distance: #if something in the clockwise, check counter clockwise
+                    self.go_Around(directions[(location-1)%4],start=position,way ="left") #go around the object
+                    value = range_dict["range."+path][-1]<550 #test if something is still in front 
                     if back or value:
-                        self.go_Around(directions[(location+1)%4])
+                        self.go_Around(directions[(location+1)%4]) #go back if forced or if it is a wall
                 else:
-                    self.move(path,distance)
+                    self.move(path,distance) #if there is still an object on both sides return to original location and return its a wall
                     return True
-            else:
+            else: #if only object in clockwise location
                 for i in range(10):
-                    self.move(directions[(location-1)%4],distance/10)
-                    value = range_dict["range."+path][-1]<550
-                    if not value:
-                        self.move(directions[(location-1)%4],.1)
+                    self.move(directions[(location-1)%4],distance/10)#move counter clockwise a max of distance
+                    value = range_dict["range."+path][-1]<550 #see if something is in front
+                    if not value: #if there is ever nothing in front
+                        self.move(directions[(location-1)%4],.1) #move a little more and stop
                         break
-                if back or value:
+                if back or value: #return if forced or still a wall
                     self.move(directions[(location+1)%4],distance) 
-        else:
+        else: #if nothing in the clockwise location
             for i in range(10):        
-                self.move(directions[(location+1)%4],distance/10)
-                value = range_dict["range."+path][-1]<550
-                if not value:
-                    self.move(directions[(location+1)%4],.1)
+                self.move(directions[(location+1)%4],distance/10) #move in the clockwise direction a max of distance
+                value = range_dict["range."+path][-1]<550 #see if something is in front
+                if not value: #if there is ever nothing in front
+                    self.move(directions[(location+1)%4],.1) #move a little more and stop
                     break
-            if back or value:
+            if back or value: #return if forced or still a wall
                 self.move(directions[(location-1)%4],distance)
-        #determine if obstacle in front is the wall or something to go around
         return value
     
-
+    #method to go around an object, object must not be a wall, can work for every direction 
+    #method would return to the original axis of motion
     def go_Around(self, path="front", gap=500,start=None,way="right"):
+        #path is original way of motion, gap is the distance wanted between the object and the drone,
+        #start is the start location, if none the position at the start of the method is used, way is the first direction it should try
         directions = ["front","right","back","left"] #create clockwise rotation method
         location = directions.index(path) #find the which direction obstacle is in
-        cord = (location+1)%2
-        if start ==None:
+        cord = (location+1)%2 #find the cord (x,y) for the axis that should be unchanged
+        if start ==None: #get initial position for the start of the method or if given
             init_pos=self.get_Position()[cord]
         else:
             init_pos=start[cord]
         while range_dict["range."+path][-1]<gap*1.2: #while the obstacle is still in that direction
             if way=="right" and range_dict["range."+directions[(location+1)%4]][-1]<gap: #if there is something in the clockwise direction
                 position=self.get_Position()
-                if self.is_Wall(directions[(location+1)%4],back=False):
-                    way="left"
+                if self.is_Wall(directions[(location+1)%4],back=False): #and that object is a wall
+                    way="left" #switch the direction
                     continue
                 else:
-                    self.go_Around(path=directions[(location+1)%4],start=position) #recall method (Cases still need to be fully tested)
+                    self.go_Around(path=directions[(location+1)%4],start=position) #if it is not a wall go around that as well
                 continue
-            elif way =="right":
-                self.move(directions[(location+1)%4],.1) #move in the next directions
-            elif way=="left" and range_dict["range."+directions[(location-1)%4]][-1]<gap:
+            elif way =="right": # if you could go clockwise
+                self.move(directions[(location+1)%4],.1) #move in that directions
+            elif way=="left" and range_dict["range."+directions[(location-1)%4]][-1]<gap: #if trying to go counter clockwise and there is something
                 position=self.get_Position()
-                if self.is_Wall(directions[(location-1)%4],back=False):
-                    side = "STUFF"
+                if self.is_Wall(directions[(location-1)%4],back=False): #and that object is a wall
+                    way = "STUFF" #then either direction is a wall and you can not go around
                     continue
                 else:
-                    self.go_Around(path=directions[(location-1)%4],start=position) #recall method (Cases still need to be fully tested)
+                    self.go_Around(path=directions[(location-1)%4],start=position) #recall method
                 continue
-            elif way=="left":
+            elif way=="left": #if trying to go counterclockwise go that direction
                 self.move(directions[(location-1)%4],.1)
-            else:
+            else: #if can not go clockwise or counter clockwise return false as a flag that it failed to go around
                 return False
-        self.move(path,1.2*gap/1000) #move so that device is not in corner
-        if "Left":
+        self.move(path,1.2*gap/1000) #move so that device is not in corner and can sense the object it tried to go around
+        if "Left": #flag for which direction the object would no be on.
             flag =1
         elif "Right":
             flag = -1
-        while range_dict["range."+directions[(location-(1*flag))%4]][-1]<gap: #while the obstacle is in the previous clockwise direction
-            if range_dict["range."+path][-1]<gap:
+        while range_dict["range."+directions[(location-(1*flag))%4]][-1]<gap: #while the obstacle is on the side of the drone
+            if range_dict["range."+path][-1]<gap: #if there is something in front
                 position =self.get_Position()
-                if self.is_Wall(path,back=False):
+                if self.is_Wall(path,back=False): #if it is a wall return that the method failed
                     return False
-                self.go_Around(path,start=position)
+                self.go_Around(path,start=position) #otherwise go around that as well
                 continue
-            self.move(path,.1) #go the original direction
-        moved =self.get_Position()[cord]-init_pos
-        while abs(moved)>(gap-100)/1000:
+            self.move(path,.1) #when nothing in front go the original direction
+        moved =self.get_Position()[cord]-init_pos #find the distance that the no affected cord went
+        while abs(moved)>(gap-100)/1000: #while the distance is larger than the gap
             print(moved)
-            print(((3*cord)+1+(abs(moved)/moved))%4)
-            if range_dict["range."+directions[int(((3*cord)+1+(abs(moved)/moved))%4)]][-1]<gap: 
-                print("WHY")
-                if range_dict["range."+path][-1]<gap:
+            print(((3*cord)+1+(abs(moved)/moved))%4) #math to get the proper direction to go based on cord and distance moved
+            if range_dict["range."+directions[int(((3*cord)+1+(abs(moved)/moved))%4)]][-1]<gap: #if there is something in that direction
+                if range_dict["range."+path][-1]<gap: #test if something is in the original direction to keep going there
                     position = self.get_Position()
-                    if self.is_Wall(path,back=False):
+                    if self.is_Wall(path,back=False): #test if wall, and fail method if needed
                         return False
-                    self.go_Around(path,start=position)
+                    self.go_Around(path,start=position) #otherwise it can go around
                     moved =self.get_Position()[cord]-init_pos
                     continue
-                self.move(path,.1)
+                self.move(path,.1) #when nothing in original path, go that direction a little more
                 moved =self.get_Position()[cord]-init_pos
                 continue
-            self.move(directions[int(((3*cord)+1+(abs(moved)/moved))%4)],(gap-100)/1000)
+            self.move(directions[int(((3*cord)+1+(abs(moved)/moved))%4)],(gap-100)/1000) #when nothing in desired direction go that direction
             print("good")
             moved =self.get_Position()[cord]-init_pos
-        self.move(directions[int(((3*cord)+1+(abs(moved)/moved))%4)],abs(moved))
-        return True
+        self.move(directions[int(((3*cord)+1+(abs(moved)/moved))%4)],abs(moved)) #move remaining amount
+        return True #return that the method was successful
 
-    #TODO 
+
     def search_Land(self, distance=200, at_l_wall = False, at_r_wall = False):
         #assuming we start in the right corner of the section: -------------
                                                    #                      * |
@@ -199,158 +203,153 @@ class Drone():
         #while the landing area is not found, the drone will move left, then back, then right, then back .
         # This will repeat until landing pad is found
                  
-        while not self.start:
-            while not self.start and not at_l_wall:
-                if range_dict["range.left"][-1] < 500:
-                    if not self.is_Wall():
-                        self.go_Around()
+        while not self.start: #will did not go over the box
+            while not self.start and not at_l_wall: #if it did not reach the left
+                if range_dict["range.left"][-1] < 500: #If there is something on the left
+                    if not self.is_Wall(): #see if it is a wall
+                        self.go_Around("left") #go around if needed
                         continue
                     else:
-                        at_l_wall = True
+                        at_l_wall = True #mark that you reached the left wall
                         break
 
                 self.pc.left(.2)
 
-            if not self.start:
-                if range_dict['range.back'][-1] < 500:
+            if not self.start: 
+                if range_dict['range.back'][-1] < 500:#if nothing is behind go back
                     if not self.is_Wall():
                         self.go_Around('back')
-                self.pc.back()
+                self.pc.back(.2)
                         
-            while not self.start and not at_r_wall:
-                if range_dict["range.right"][-1] < 500:
+            while not self.start and not at_r_wall: #if it did not reach the right wall
+                if range_dict["range.right"][-1] < 500: #check if something is on the right
                     if not self.is_Wall():
-                        self.go_Around('right')
+                        self.go_Around('right') #go around if needed
                         continue
-                    else:
+                    else: #if it is a wall mark that the wall it hit
                         at_r_wall = True
                         break
 
-                self.pc.right(.2)
+                self.pc.right(.2) #if there is nothing to the right go right
             
-            if not self.start:
+            if not self.start: #if it did not reach the box go back to continue the search
                 if range_dict['range.back'][-1] < 500:
                     if not self.is_Wall():
                         self.go_Around('back')
                 self.pc.back(.2)
 
+        #repeated until it reaches the box
         
-        
-
-        #search for landing box using _____ method
-        #break when find box
         return
-    
-    #TODO     
+       #method to find and go to the center of the box assuming it is already over the box
     def find_center(self):
-        self.backward(.3)
-        self.reset()
+        self.backward(.3)#go back a little so it is not over the box
+        self.reset() #reset the flags
         print("forward")
-        while not self.end:
+        while not self.end: #go forward until it reaches the end of the box
             self.forward(.2)
         time.sleep(.5)
-        midpoint = [(self.end_pos[0]+self.start_pos[0])/2,(self.end_pos[1]+self.start_pos[1])/2]
-        drone.pc.go_to(midpoint[0],midpoint[1])
+        midpoint = [(self.end_pos[0]+self.start_pos[0])/2,(self.end_pos[1]+self.start_pos[1])/2] #calculate the midpoint
+        drone.pc.go_to(midpoint[0],midpoint[1]) #go to the midpoint
         #current = self.get_Position()
         #self.go_to([midpoint[0]-current[0],midpoint[1]-current[1]])
         print("mid 1")
         time.sleep(.5)
+        #go to the left so it is no longer over the box and finds the middle in the other axis
         self.left(.3)
-        self.reset()
+        self.reset()# reset the flags
         print("right")
-        while not self.end:
+        while not self.end: #while it did not reach the end go right
             self.right(.2)
         time.sleep(.5)
-        midpoint = [(self.end_pos[0]+self.start_pos[0])/2,(self.end_pos[1]+self.start_pos[1])/2]
+        midpoint = [(self.end_pos[0]+self.start_pos[0])/2,(self.end_pos[1]+self.start_pos[1])/2] #calculate the midpoint
         #current = self.get_Position()
         #self.go_to([midpoint[0]-current[0],midpoint[1]-current[1]])
-        drone.pc.go_to(midpoint[0],midpoint[1])
+        drone.pc.go_to(midpoint[0],midpoint[1]) #go to the midpoint
         print("mid 2")
         return
     
-    #JI
+    #method to go to a location when distance is a list of distance it needs to travel
     def go_to(self,distance):
         #travels the distance needed avoiding obstacles
-        
-        start_pos = self.get_Position()
-        target_pos = [start_pos[0]+distance[0], start_pos[1]+distance[1], start_pos[2]]
+        start_pos = self.get_Position() #get to the current 
+        target_pos = [start_pos[0]+distance[0], start_pos[1]+distance[1], start_pos[2]] # get the desired end point
         current_pos = start_pos
         
         #go to x coordinate (front/back)
-        while abs(target_pos[0]-current_pos[0])>=.4:
-            if target_pos[0]-current_pos[0]>0:
+        while abs(target_pos[0]-current_pos[0])>=.4: #if there is a distance in the x direction
+            if target_pos[0]-current_pos[0]>0: #if it is forward
                 if range_dict["range.front"][-1]<=500: #if there's an obstacle
                     self.go_Around() #go around it
                     current_pos = self.get_Position()
                     continue
                 self.move("front",.4) #move forward
-            elif target_pos[0]-current_pos[0]<0:
+            elif target_pos[0]-current_pos[0]<0: #if it is backwards
                 if range_dict["range.back"][-1]<=500: #if there's an obstacle
                     self.go_Around(path="back") #go around it
                     current_pos = self.get_Position()
                     continue
                 self.move("back",.4)
             current_pos = self.get_Position() #get current position
+        #do the remaining distance to travel
         if target_pos[0]-current_pos[0]>0:
             self.move("front",target_pos[0]-current_pos[0])
         elif target_pos[0]-current_pos[0]<0:
             self.move("back",target_pos[0]-current_pos[0])
 
         #go to y coordinate (left/right)
-        while abs(target_pos[1]-current_pos[1])>=.4:
-            if target_pos[1]-current_pos[1]<0:
-                if range_dict["range.right"][-1]<=500:
-                    self.go_Around(path="right")
+        while abs(target_pos[1]-current_pos[1])>=.4: #if there is a distance in the y direction
+            if target_pos[1]-current_pos[1]<0: #if it goes right
+                if range_dict["range.right"][-1]<=500:#if there is an obstacle
+                    self.go_Around(path="right") #go around it
                     current_pos = self.get_Position()
                     continue
                 self.move("right",.4)
 
-            elif target_pos[1]-current_pos[1]>0:
-                if range_dict["range.left"][-1]<=500:
-                    self.go_Around(path="left") 
+            elif target_pos[1]-current_pos[1]>0: #if it goes left
+                if range_dict["range.left"][-1]<=500: #if there is an obstacle
+                    self.go_Around(path="left") #go around it
                     current_pos = self.get_Position()
                     continue
                 self.move("left",.4)
 
-            current_pos = self.get_Position()
-
+            current_pos = self.get_Position()#get current position
+        #move the remaining distance to travel
         if target_pos[1]-current_pos[1]>0:
             self.move("left",target_pos[1]-current_pos[1])
         elif target_pos[1]-current_pos[1]<0:
             self.move("right",target_pos[1]-current_pos[1])
         
         #go to x coordinate again (front/back)
-        while abs(target_pos[0]-current_pos[0])>=.4:
-            if target_pos[0]-current_pos[0]>0:
+        while abs(target_pos[0]-current_pos[0])>=.4:#if there is a distance to go in the x direction
+            if target_pos[0]-current_pos[0]>0: #if the direction is forward
                 if range_dict["range.front"][-1]<=500: #if there's an obstacle
                     self.go_Around() #go around it
                     current_pos = self.get_Position()
                     continue
                 self.move("front",.4) #move forward
-            elif target_pos[0]-current_pos[0]<0:
+            elif target_pos[0]-current_pos[0]<0:#if the direction is backwards
                 if range_dict["range.back"][-1]<=500: #if there's an obstacle
                     self.go_Around(path="back") #go around it
                     current_pos = self.get_Position()
                     continue
                 self.move("back",.4)
             current_pos = self.get_Position() #get current position
+        #do remaining movements
         if target_pos[0]-current_pos[0]>0:
             self.move("front",target_pos[0]-current_pos[0])
         elif target_pos[0]-current_pos[0]<0:
             self.move("back",target_pos[0]-current_pos[0])
         return
 
-    #TODO 
+    #assuming the drone is at the estimated start position, start going around gradually increasing the circle,
+    #this is used as the location would be close to the actual location
     def search_Start(self, distance = .2, increase = .1, start_disance = None):
-        #at assumed start position
-        #if not above box
-        #search for box using growing circles
-        #break when find box
 
         #general motion: go forward(x) go_right(x) go_back(x+ delta) go_left(x+delta), x = x + 2*delta and repeat
 
         #if alredy above box, execute find center function (may need to be replaced with edge finding algo)
-        if self.start:  
+        if self.start:  #if not already over the box
             return
         else:
             while not self.start:
@@ -475,101 +474,62 @@ if __name__ == '__main__':
             controller=PositionHlCommander.CONTROLLER_MELLINGER)
         drone = Drone(scf, pc)
         try: 
-            drone.log_async(logs)
-            drone.pc.take_off()
+            drone.log_async(logs) #start logging data
+            drone.pc.take_off() #take off 
             print("takeoff")
             time.sleep(1)
-            initial_pos = drone.get_Position()
+            initial_pos = drone.get_Position() #get initial position
             print(initial_pos)
             #time.sleep(5)
-            """
-            for i in range(15):
-            drone.forward(.2)
-            if range_dict["range.left"][-1]<100:
-                drone.left(.1)
-            if range_dict["range.right"][-1]<100:
-                drone.right(.1)
-            if range_dict["range.front"][-1]<500:
-                print("STOP")
-                position = drone.get_Position()
-                if drone.is_Wall("front", back=False):
-                    print("wall")
-                else:
-                    print("no wall")
-                    drone.go_Around(start=position)
-                    #drone.backward(.2)
-                    break
-            """
-            """
-            drone.forward(.3)
-            drone.reset()
-            for i in range(5):
-                drone.forward(.2)
-                if drone.start:
-                    print("Over Box")
-                    drone.forward(.1)
-                    #drone.find_center()
-                    print("land")
-                    drone.pc.down(.6)
-                    final_pos=drone.get_Position()
-                    break
-            drone.pc.land()
-            drone.pc.take_off()
-            drone.go_to([-1*final_pos[0],-1*final_pos[1]]) 
-            drone.search_Start()
-            #drone.find_center()
-            drone.pc.down(.6)
-            drone.pc.land()
-        """
-        #   TODO
         #   Fly code 
-            at_end = False
-            while not at_end:
-                if range_dict["range.front"][-1]<500:
+            at_end = False 
+            while not at_end: #while it did not reach the end of the room
+                if range_dict["range.front"][-1]<500: #if there is something in front
                     print("Stop")
                     position = drone.get_Position()
-                    if drone.get_Position()[0]>1 and drone.is_Wall(back=False):
-                        print("wall")
+                    if drone.get_Position()[0]>1 and drone.is_Wall(back=False): #if it over 1m away it could be a wall
+                        print("wall") #if it is a wall mark that the end is reached
                         at_end=True
                         break
-                    if not drone.go_Around(start=position):
+                    if not drone.go_Around(start=position): #if it is not a wall go around, if it ever fails mark it as reached the end
                         print("around")
                         at_end=True
                         break
                     continue
-                if range_dict["range.left"][-1]<100:
+                if range_dict["range.left"][-1]<100: #if there is something to the left move right a little
                     print("right")
                     drone.right(.1)
-                if range_dict["range.right"][-1]<100:
+                if range_dict["range.right"][-1]<100: #if there is something to the right move left a little
                     print("left")
                     drone.left(.1)
-                drone.forward(.2)
-            while range_dict["range.right"][-1]<400:
+                drone.forward(.2) #if there is nothing in front move forward
+            while range_dict["range.right"][-1]<400: #once the end is reached if there is nothing to the right go right
                 drone.right(.2)
-            print("corner")
-            drone.reset()
+            print("corner")#if there is something to the right the top right corner is reached
+            drone.reset() #reset the flags for finding the box
             print("searching")
-            drone.search_Land()
-            #drone.find_center()
+            drone.search_Land() #search for the box
+            #drone.find_center() #find the center of the box
             print("land")
             time.sleep(.5)
-            drone.pc.down(.6)
+            drone.pc.down(.6) #land on the box
             drone.pc.land()
-            end_pos= drone.get_Position()
+            end_pos= drone.get_Position() #get the end position
             print("wait")        
             time.sleep(2)
-            drone.pc.take_off()
+            drone.pc.take_off()#take off from the box
             print("take off")
-            distance=[initial_pos[0]-end_pos[0],initial_pos[1]-end_pos[1]]
-            drone.go_to(distance)
+            distance=[initial_pos[0]-end_pos[0],initial_pos[1]-end_pos[1]] #find the distance the drone needs to travel back
+            drone.go_to(distance) #travel back to start
             print("at Start")
-            drone.search_Start(start_distance = distance)
+            drone.search_Start(start_distance = distance) #search for the starting location
             time.sleep(.5)
-            #drone.find_center()
+            #drone.find_center() #find the center of the box
             print("landing")
-            drone.pc.down(.6)
+            drone.pc.down(.6) #land on the box
             drone.pc.land()
-        except KeyboardInterrupt:
+        except KeyboardInterrupt: #Safety feature that if something goes wrong a keyboard interruption can be used and the drone would land
+            #without this the drone would continue to hover, even with the radio disconnected
             drone.pc.land()
             print("ERROR")
 
